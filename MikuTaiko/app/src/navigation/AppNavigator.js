@@ -4,9 +4,10 @@ import { NavigationContainer } from '@react-navigation/native';
 
 // Import screens
 import HomeScreen from '../screens/HomeScreen';
-import SongSelectScreen from '../screens/SongSelectScreen';
+import SongSelectionScreen from '../screens/SongSelectScreen';
 import GameplayScreen from '../screens/GameplayScreen';
 import ResultsScreen from '../screens/ResultsScreen';
+import ImportScreen from '../screens/ImportScreen';
 
 const Stack = createStackNavigator();
 
@@ -35,10 +36,17 @@ export default function AppNavigator() {
           }}
         />
         <Stack.Screen 
-          name="SongSelect" 
-          component={SongSelectScreen}
+          name="SongSelection" 
+          component={SongSelectionScreen}
           options={{
             title: 'Select Song',
+          }}
+        />
+        <Stack.Screen 
+          name="Import" 
+          component={ImportScreen}
+          options={{
+            title: 'Import Beatmaps',
           }}
         />
         <Stack.Screen 
