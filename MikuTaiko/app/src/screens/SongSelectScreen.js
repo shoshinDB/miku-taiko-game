@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -8,23 +8,54 @@ import {
   ScrollView,
   Dimensions,
   SafeAreaView,
-  StatusBar
+  StatusBar,
+  ActivityIndicator
 } from 'react-native';
 import { useAppContext } from '../contexts/AppContext';
+import BeatmapManager from '../utils/BeatmapManager';
 
 const { width } = Dimensions.get('window');
 
-const songs = [
+// Built-in songs
+const builtInSongs = [
   {
     id: 1,
     title: "Redial",
     artist: "Miku Hatsune",
     difficulty: "Easy",
     coverImage: require('../../../assets/images/redial.png'),
+    audioFile: require('../../../assets/songs/redial.mp3'),
     beatmap: [
       { type: 'don', time: 1000 },
       { type: 'ka', time: 2000 },
       { type: 'don', time: 3000 },
+      { type: 'don', time: 4000 },
+      { type: 'ka', time: 5000 },
+      { type: 'don', time: 6000 },
+      { type: 'ka', time: 7000 },
+      { type: 'don', time: 8000 },
+      { type: 'don', time: 9000 },
+      { type: 'ka', time: 10000 },
+      { type: 'don', time: 11000 },
+      { type: 'ka', time: 12000 },
+      { type: 'don', time: 13000 },
+      { type: 'don', time: 14000 },
+      { type: 'ka', time: 15000 },
+      { type: 'don', time: 16000 },
+      { type: 'ka', time: 17000 },
+      { type: 'don', time: 18000 },
+      { type: 'don', time: 19000 },
+      { type: 'ka', time: 20000 },
+      { type: 'don', time: 21000 },
+      { type: 'ka', time: 22000 },
+      { type: 'don', time: 23000 },
+      { type: 'don', time: 24000 },
+      { type: 'ka', time: 25000 },
+      { type: 'don', time: 26000 },
+      { type: 'ka', time: 27000 },
+      { type: 'don', time: 28000 },
+      { type: 'don', time: 29000 },
+      { type: 'ka', time: 30000 },
     ]
   },
   {
@@ -54,8 +85,37 @@ const songs = [
 ];
 
 export default function SongSelectScreen({ navigation }) {
-  const { setSelectedSong, getHighScore } = useAppContext();
+  const { setSelectedSong, getHighScore, customSongs } = useAppContext();
   const [selectedIndex, setSelectedIndex] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [osuSongs, setOsuSongs] = useState([]);
+  
+  // Load osu beatmaps on component mount
+  useEffect(() => {
+    const loadOsuBeatmaps = async () => {
+      setIsLoading(true);
+      
+      try {
+        // Initialize the BeatmapManager
+        await BeatmapManager.initialize();
+        
+        // Get converted songs from the BeatmapManager
+        const songs = BeatmapManager.getSongsFromBeatmaps();
+        setOsuSongs(songs);
+        
+        console.log(`Loaded ${songs.length} songs from .osu beatmaps`);
+      } catch (error) {
+        console.error('Error loading .osu beatmaps:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    loadOsuBeatmaps();
+  }, []);
+  
+  // Combine all song sources: built-in, custom imported, and osu beatmaps
+  const allSongs = [...builtInSongs, ...customSongs, ...osuSongs];
   
   const handleSongSelect = (song, index) => {
     setSelectedIndex(index);
@@ -67,6 +127,11 @@ export default function SongSelectScreen({ navigation }) {
     }, 300);
   };
 
+  // Handle navigation to the import screen
+  const handleImportPress = () => {
+    navigation.navigate('Import');
+  };
+
   const getDifficultyColor = (difficulty) => {
     switch(difficulty) {
       case 'Easy': return '#4CAF50';
@@ -76,6 +141,16 @@ export default function SongSelectScreen({ navigation }) {
     }
   };
 
+  // Get a badge indicator for the song source
+  const getSongSourceBadge = (song) => {
+    if (song.source === 'osu') {
+      return <Text style={[styles.sourceBadge, { backgroundColor: '#ff66aa' }]}>osu!</Text>;
+    } else if (song.isCustom) {
+      return <Text style={[styles.sourceBadge, { backgroundColor: '#ff9500' }]}>Custom</Text>;
+    }
+    return null;
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" />
@@ -83,56 +158,75 @@ export default function SongSelectScreen({ navigation }) {
         <Text style={styles.title}>Select a Song</Text>
         <Text style={styles.subtitle}>Choose your rhythm challenge</Text>
         
-        <ScrollView 
-          style={styles.songList}
-          showsVerticalScrollIndicator={false}
-        >
-          {songs.map((song, index) => (
-            <TouchableOpacity
-              key={song.id}
-              style={[
-                styles.songCard,
-                selectedIndex === index && styles.selectedCard
-              ]}
-              activeOpacity={0.7}
-              onPress={() => handleSongSelect(song, index)}
-            >
-              <View style={styles.cardContent}>
-                <Image 
-                  source={song.coverImage}
+        {isLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#4a78f3" />
+            <Text style={styles.loadingText}>Loading beatmaps...</Text>
+          </View>
+        ) : (
+          <ScrollView 
+            style={styles.songList}
+            contentContainerStyle={styles.songListContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {allSongs.map((song, index) => (
+              <TouchableOpacity
+                key={song.id}
+                style={[
+                  styles.songCard,
+                  selectedIndex === index && styles.selectedCard,
+                  song.source === 'osu' && styles.osuSongCard,
+                  song.isCustom && styles.customSongCard
+                ]}
+                onPress={() => handleSongSelect(song, index)}
+              >
+                <Image
+                  source={song.coverImage || require('../../../assets/images/default-cover.png')}
                   style={styles.coverImage}
-                  defaultSource={require('../../../assets/images/redial.png')}
+                  resizeMode="cover"
                 />
+                
                 <View style={styles.songInfo}>
                   <Text style={styles.songTitle}>{song.title}</Text>
                   <Text style={styles.artistName}>{song.artist}</Text>
-                  <View style={styles.difficultyContainer}>
-                    <View 
-                      style={[
-                        styles.difficultyBadge,
-                        { backgroundColor: getDifficultyColor(song.difficulty) }
-                      ]}
-                    >
-                      <Text style={styles.difficultyText}>{song.difficulty}</Text>
-                    </View>
+                  
+                  <View style={styles.songMetrics}>
+                    <Text style={[
+                      styles.difficulty, 
+                      { color: getDifficultyColor(song.difficulty) }
+                    ]}>
+                      {song.difficulty}
+                    </Text>
+                    
+                    {song.bpm && (
+                      <Text style={styles.bpm}>BPM: {song.bpm}</Text>
+                    )}
+                    
+                    <Text style={styles.highScore}>
+                      High Score: {getHighScore(song.id)}
+                    </Text>
+                    
+                    {getSongSourceBadge(song)}
                   </View>
-                  <Text style={styles.highScore}>
-                    High Score: {getHighScore(song.id).toLocaleString()}
-                  </Text>
+                  
+                  <View style={styles.noteCount}>
+                    <Text style={styles.noteCountText}>
+                      {song.beatmap?.length || 0} notes
+                    </Text>
+                  </View>
                 </View>
-              </View>
-              
-              <View style={styles.playButtonContainer}>
-                <TouchableOpacity 
-                  style={styles.playButton}
-                  onPress={() => handleSongSelect(song, index)}
-                >
-                  <Text style={styles.playButtonText}>PLAY</Text>
-                </TouchableOpacity>
-              </View>
+              </TouchableOpacity>
+            ))}
+            
+            {/* Import button at the bottom */}
+            <TouchableOpacity 
+              style={styles.importButton}
+              onPress={handleImportPress}
+            >
+              <Text style={styles.importButtonText}>Import .osz Beatmap</Text>
             </TouchableOpacity>
-          ))}
-        </ScrollView>
+          </ScrollView>
+        )}
         
         <TouchableOpacity 
           style={styles.backButton}
@@ -170,6 +264,9 @@ const styles = StyleSheet.create({
   songList: {
     flex: 1,
   },
+  songListContent: {
+    padding: 20,
+  },
   songCard: {
     backgroundColor: '#16213e',
     borderRadius: 16,
@@ -188,6 +285,14 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.5,
     shadowRadius: 10,
     elevation: 5,
+  },
+  customSongCard: {
+    borderLeftWidth: 4,
+    borderLeftColor: '#ff9500',
+  },
+  osuSongCard: {
+    borderLeftWidth: 4,
+    borderLeftColor: '#ff66aa',
   },
   cardContent: {
     flexDirection: 'row',
@@ -218,36 +323,67 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginBottom: 8,
   },
-  difficultyBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
+  songMetrics: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    flexWrap: 'wrap',
   },
-  difficultyText: {
-    color: '#ffffff',
+  difficulty: {
+    fontSize: 14,
     fontWeight: 'bold',
-    fontSize: 12,
+    marginRight: 10,
+  },
+  bpm: {
+    fontSize: 14,
+    color: '#bbbbbb',
+    marginRight: 10,
   },
   highScore: {
     fontSize: 14,
     color: '#e0e0e0',
   },
-  playButtonContainer: {
-    borderTopWidth: 1,
-    borderTopColor: '#2a2a5a',
-    padding: 10,
+  sourceBadge: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#ffffff',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    marginLeft: 8,
+    overflow: 'hidden',
+  },
+  noteCount: {
+    marginTop: 5,
+  },
+  noteCountText: {
+    fontSize: 12,
+    color: '#aaaaaa',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  playButton: {
-    backgroundColor: '#4a78f3',
-    paddingVertical: 8,
-    paddingHorizontal: 30,
-    borderRadius: 20,
-  },
-  playButtonText: {
+  loadingText: {
     color: '#ffffff',
+    marginTop: 16,
+    fontSize: 16,
+  },
+  importButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    padding: 15,
+    borderRadius: 10,
+    marginTop: 20,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderStyle: 'dashed',
+  },
+  importButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
     fontWeight: 'bold',
-    fontSize: 14,
   },
   backButton: {
     marginTop: 20,

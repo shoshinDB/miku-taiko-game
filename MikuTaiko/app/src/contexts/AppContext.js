@@ -12,21 +12,27 @@ export const AppContextProvider = ({ children }) => {
   const [accuracy, setAccuracy] = useState(100);
   const [highScores, setHighScores] = useState({});
   const [selectedSong, setSelectedSong] = useState(null);
+  const [customSongs, setCustomSongs] = useState([]);
 
-  // Load high scores from AsyncStorage on initial load
+  // Load high scores and custom songs from AsyncStorage on initial load
   useEffect(() => {
-    const loadHighScores = async () => {
+    const loadData = async () => {
       try {
         const storedHighScores = await AsyncStorage.getItem('highScores');
         if (storedHighScores !== null) {
           setHighScores(JSON.parse(storedHighScores));
         }
+        
+        const storedCustomSongs = await AsyncStorage.getItem('customSongs');
+        if (storedCustomSongs !== null) {
+          setCustomSongs(JSON.parse(storedCustomSongs));
+        }
       } catch (error) {
-        console.error('Failed to load high scores:', error);
+        console.error('Failed to load data from storage:', error);
       }
     };
 
-    loadHighScores();
+    loadData();
   }, []);
 
   // Save a new high score for a song
@@ -53,6 +59,50 @@ export const AppContextProvider = ({ children }) => {
   const getHighScore = (songId) => {
     return highScores[songId] || 0;
   };
+  
+  // Add a custom song imported from an .osz file
+  const addCustomSong = async (songData) => {
+    try {
+      // Check if we have required data
+      if (!songData.title || !songData.audioFile || !songData.beatmap) {
+        throw new Error('Invalid song data: missing required fields');
+      }
+      
+      // Add the song to our custom songs list
+      const updatedSongs = [...customSongs, songData];
+      setCustomSongs(updatedSongs);
+      
+      // Save to AsyncStorage
+      await AsyncStorage.setItem('customSongs', JSON.stringify(updatedSongs));
+      
+      return true;
+    } catch (error) {
+      console.error('Failed to add custom song:', error);
+      throw error;
+    }
+  };
+  
+  // Remove a custom song
+  const removeCustomSong = async (songId) => {
+    try {
+      const updatedSongs = customSongs.filter(song => song.id !== songId);
+      setCustomSongs(updatedSongs);
+      
+      // Save to AsyncStorage
+      await AsyncStorage.setItem('customSongs', JSON.stringify(updatedSongs));
+      
+      return true;
+    } catch (error) {
+      console.error('Failed to remove custom song:', error);
+      return false;
+    }
+  };
+  
+  // Get all songs (built-in + custom)
+  const getAllSongs = () => {
+    // This should be updated to include both your built-in songs and custom songs
+    return [...builtInSongs, ...customSongs];
+  };
 
   return (
     <AppContext.Provider
@@ -69,7 +119,11 @@ export const AppContextProvider = ({ children }) => {
         saveHighScore,
         getHighScore,
         selectedSong,
-        setSelectedSong
+        setSelectedSong,
+        customSongs,
+        addCustomSong,
+        removeCustomSong,
+        getAllSongs
       }}
     >
       {children}
